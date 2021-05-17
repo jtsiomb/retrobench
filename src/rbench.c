@@ -14,11 +14,16 @@ struct options opt = {
 };
 
 int fb_width, fb_height, fb_bpp, fb_pitch;
+int fb_rshift, fb_gshift, fb_bshift;
+unsigned int fb_rmask, fb_gmask, fb_bmask;
 void *framebuf;
 unsigned int time_msec;
 
 int init(void)
 {
+	printf("initialized graphics %dx%d %dbpp\n", fb_width, fb_height, fb_bpp);
+	printf("  rgb mask: %x %x %x\n", fb_rmask, fb_gmask, fb_bmask);
+	printf("  rgb shift: %d %d %d\n", fb_rshift, fb_gshift, fb_bshift);
 	return 0;
 }
 
@@ -48,22 +53,14 @@ void redraw(void)
 
 	switch(fb_bpp) {
 	case 15:
-		fbptr16 = framebuf;
-		for(i=0; i<fb_height; i++) {
-			for(j=0; j<fb_width; j++) {
-				XORRGB(j + xoffs, i + yoffs, zoom, r, g, b);
-				*fbptr16++ = ((r & 0x1f) << 10) | ((g & 0x1f) << 5) | (b & 0x1f);
-			}
-			fbptr16 += (fb_pitch >> 1) - fb_width;
-		}
-		break;
-
 	case 16:
 		fbptr16 = framebuf;
 		for(i=0; i<fb_height; i++) {
 			for(j=0; j<fb_width; j++) {
 				XORRGB(j + xoffs, i + yoffs, zoom, r, g, b);
-				*fbptr16++ = ((r & 0x1f) << 11) | ((g & 0x3f) << 5) | (b & 0x1f);
+				*fbptr16++ = (((r >> 3) << fb_rshift) & fb_rmask) |
+					(((g >> 2) << fb_gshift) & fb_gmask) |
+					(((b >> 3) << fb_bshift) & fb_bmask);
 			}
 			fbptr16 += (fb_pitch >> 1) - fb_width;
 		}
@@ -87,7 +84,9 @@ void redraw(void)
 		for(i=0; i<fb_height; i++) {
 			for(j=0; j<fb_width; j++) {
 				XORRGB(j + xoffs, i + yoffs, zoom, r, g, b);
-				*fbptr32++ = ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+				*fbptr32++ = (((r) << fb_rshift) & fb_rmask) |
+					(((g) << fb_gshift) & fb_gmask) |
+					(((b) << fb_bshift) & fb_bmask);
 			}
 			fbptr32 += (fb_pitch >> 2) - fb_width;
 		}

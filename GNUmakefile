@@ -5,11 +5,11 @@ bin = rbench
 
 warn = -pedantic -Wall -Wno-deprecated-declarations
 dbg = -g
-#opt = -O3 -ffast-math
+opt = -O3 -ffast-math
 inc = -Isrc
 
 CFLAGS = -pedantic $(warn) $(dbg) $(opt) $(inc) -MMD
-LDFLAGS = -lX11 -lXext -lm
+LDFLAGS = -L/usr/X11R6/lib -lX11 -lXext -lm
 
 $(bin): $(obj)
 	$(CC) -o $@ $(obj) $(LDFLAGS)

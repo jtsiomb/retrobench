@@ -7,6 +7,8 @@ struct options {
 
 extern struct options opt;
 extern int fb_width, fb_height, fb_bpp, fb_pitch;
+extern int fb_rshift, fb_gshift, fb_bshift;
+extern unsigned int fb_rmask, fb_gmask, fb_bmask;
 extern void *framebuf;
 extern unsigned int time_msec;
 

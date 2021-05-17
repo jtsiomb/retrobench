@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/time.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -9,6 +10,7 @@
 #include <X11/keysym.h>
 #include <X11/extensions/XShm.h>
 #include "rbench.h"
+#include "util.h"
 
 enum { QUIT = 1, REDRAW = 2 };
 
@@ -16,6 +18,7 @@ static Window create_win(int width, int height, int bpp);
 static void handle_event(XEvent *ev);
 static int translate_keysym(KeySym sym);
 static int parse_args(int argc, char **argv);
+static void sig(int s);
 
 static int win_width, win_height;
 static int mapped;
@@ -33,12 +36,14 @@ static int xshm_ev_completion;
 
 int main(int argc, char **argv)
 {
-	int num_frames;
+	int num_frames = 0;
 	XEvent ev;
 	struct timeval tv, tv0;
 
 	shm.shmid = -1;
 	shm.shmaddr = (void*)-1;
+
+	signal(SIGINT, sig);
 
 	read_config("rbench.cfg");
 
@@ -86,18 +91,27 @@ int main(int argc, char **argv)
 
 	fb_width = opt.width;
 	fb_height = opt.height;
-	fb_bpp = opt.bpp >= 24 ? 32 : opt.bpp;
+	if(opt.bpp >= 24) {
+		fb_bpp = ximg->bytes_per_line < fb_width * 4 ? 24 : 32;
+	} else {
+		fb_bpp = opt.bpp;
+	}
 	framebuf = ximg->data;
 	fb_pitch = ximg->bytes_per_line;
+	fb_rmask = ximg->red_mask;
+	fb_gmask = ximg->green_mask;
+	fb_bmask = ximg->blue_mask;
+	fb_rshift = mask_to_shift(fb_rmask);
+	fb_gshift = mask_to_shift(fb_gmask);
+	fb_bshift = mask_to_shift(fb_bmask);
 
 	if(init() == -1) {
 		goto end;
 	}
 
 	gettimeofday(&tv0, 0);
-	num_frames = 0;
 
-	for(;;) {
+	while(!(pending & QUIT)) {
 		if(mapped) {/* && !wait_putimg) { */
 			while(XPending(dpy)) {
 				XNextEvent(dpy, &ev);
@@ -105,14 +119,16 @@ int main(int argc, char **argv)
 				if(pending & QUIT) goto end;
 			}
 
-			gettimeofday(&tv, 0);
-			time_msec = (tv.tv_sec - tv0.tv_sec) * 1000 + (tv.tv_usec - tv0.tv_usec) / 1000;
-			num_frames++;
+			if(!wait_putimg) {
+				gettimeofday(&tv, 0);
+				time_msec = (tv.tv_sec - tv0.tv_sec) * 1000 + (tv.tv_usec - tv0.tv_usec) / 1000;
+				num_frames++;
 
-			redraw();
+				redraw();
 
-			XShmPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, ximg->width, ximg->height, False);
-			/*wait_putimg = 1;*/
+				XShmPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, ximg->width, ximg->height, True);
+				wait_putimg = 1;
+			}
 		} else {
 			XNextEvent(dpy, &ev);
 			handle_event(&ev);
@@ -174,8 +190,9 @@ static Window create_win(int width, int height, int bpp)
 
 	xattr.background_pixel = BlackPixel(dpy, scr);
 	xattr.colormap = cmap;
+	xattr.override_redirect = True;
 	win = XCreateWindow(dpy, root, 0, 0, width, height, 0, vinf->depth,
-			InputOutput, vis, CWColormap | CWBackPixel, &xattr);
+			InputOutput, vis, CWColormap | CWBackPixel | CWOverrideRedirect, &xattr);
 	if(!win) return 0;
 
 	XSelectInput(dpy, win, StructureNotifyMask | ExposureMask | KeyPressMask |
@@ -305,4 +322,9 @@ inval_arg:	fprintf(stderr, "invalid argument: %s\n", argv[i]);
 		}
 	}
 	return 0;
+}
+
+static void sig(int s)
+{
+	pending |= QUIT;
 }
