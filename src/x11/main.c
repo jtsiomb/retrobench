@@ -1,8 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/keysym.h>
+#include <X11/extensions/XShm.h>
 #include "rbench.h"
 
 enum { QUIT = 1, REDRAW = 2 };
@@ -17,11 +22,23 @@ static int mapped;
 static unsigned int pending;
 static Display *dpy;
 static Window win, root;
+static GC gc;
+static Visual *vis;
 static Atom xa_wm_proto, xa_wm_delwin;
+
+static XImage *ximg;
+static XShmSegmentInfo shm;
+static int wait_putimg;
+static int xshm_ev_completion;
 
 int main(int argc, char **argv)
 {
+	int num_frames;
 	XEvent ev;
+	struct timeval tv, tv0;
+
+	shm.shmid = -1;
+	shm.shmaddr = (void*)-1;
 
 	read_config("rbench.cfg");
 
@@ -37,18 +54,65 @@ int main(int argc, char **argv)
 	xa_wm_proto = XInternAtom(dpy, "WM_PROTOCOLS", 0);
 	xa_wm_delwin = XInternAtom(dpy, "WM_DELETE_WINDOW", 0);
 
+	if(!XShmQueryExtension(dpy)) {
+		fprintf(stderr, "X shared memory extension is not available\n");
+		XCloseDisplay(dpy);
+		return 1;
+	}
+	xshm_ev_completion = XShmGetEventBase(dpy) + ShmCompletion;
+
 	if(!(win = create_win(opt.width, opt.height, opt.bpp))) {
 		return 1;
 	}
+	gc = XCreateGC(dpy, win, 0, 0);
+
+	if(!(ximg = XShmCreateImage(dpy, vis, opt.bpp, ZPixmap, 0, &shm, opt.width, opt.height))) {
+		fprintf(stderr, "failed to create shared memory image\n");
+		goto end;
+	}
+	if((shm.shmid = shmget(IPC_PRIVATE, ximg->bytes_per_line * ximg->height, IPC_CREAT | 0777)) == -1) {
+		fprintf(stderr, "failed to create shared memory block\n");
+		goto end;
+	}
+	if((shm.shmaddr = ximg->data = shmat(shm.shmid, 0, 0)) == (void*)-1) {
+		fprintf(stderr, "failed to attach shared memory block\n");
+		goto end;
+	}
+	shm.readOnly = True;
+	if(!XShmAttach(dpy, &shm)) {
+		fprintf(stderr, "XShmAttach failed");
+		goto end;
+	}
+
+	fb_width = opt.width;
+	fb_height = opt.height;
+	fb_bpp = opt.bpp >= 24 ? 32 : opt.bpp;
+	framebuf = ximg->data;
+	fb_pitch = ximg->bytes_per_line;
+
+	if(init() == -1) {
+		goto end;
+	}
+
+	gettimeofday(&tv0, 0);
+	num_frames = 0;
 
 	for(;;) {
-		if(mapped) {
+		if(mapped) {/* && !wait_putimg) { */
 			while(XPending(dpy)) {
 				XNextEvent(dpy, &ev);
 				handle_event(&ev);
 				if(pending & QUIT) goto end;
 			}
+
+			gettimeofday(&tv, 0);
+			time_msec = (tv.tv_sec - tv0.tv_sec) * 1000 + (tv.tv_usec - tv0.tv_usec) / 1000;
+			num_frames++;
+
 			redraw();
+
+			XShmPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, ximg->width, ximg->height, False);
+			/*wait_putimg = 1;*/
 		} else {
 			XNextEvent(dpy, &ev);
 			handle_event(&ev);
@@ -57,8 +121,26 @@ int main(int argc, char **argv)
 	}
 
 end:
-	XDestroyWindow(dpy, win);
+	cleanup();
+	if(ximg) {
+		XShmDetach(dpy, &shm);
+		XDestroyImage(ximg);
+		if(shm.shmaddr != (void*)-1) {
+			shmdt(shm.shmaddr);
+		}
+		if(shm.shmid != -1) {
+			shmctl(shm.shmid, IPC_RMID, 0);
+		}
+	}
+	if(win) {
+		XFreeGC(dpy, gc);
+		XDestroyWindow(dpy, win);
+	}
 	XCloseDisplay(dpy);
+
+	if(num_frames) {
+		printf("avg framerate: %.1f fps\n", (10000 * num_frames / time_msec) / 10.0f);
+	}
 	return 0;
 }
 
@@ -66,7 +148,7 @@ static Window create_win(int width, int height, int bpp)
 {
 	int scr, num_vis;
 	Window win;
-	XVisualInfo *vis, vinf;
+	XVisualInfo *vinf, vtmpl;
 	unsigned int vinf_mask;
 	XSetWindowAttributes xattr;
 	XTextProperty txname;
@@ -75,24 +157,25 @@ static Window create_win(int width, int height, int bpp)
 
 	scr = DefaultScreen(dpy);
 
-	vinf.screen = scr;
-	vinf.depth = bpp;
-	vinf.class = bpp <= 8 ? PseudoColor : TrueColor;
+	vtmpl.screen = scr;
+	vtmpl.depth = bpp;
+	vtmpl.class = bpp <= 8 ? PseudoColor : TrueColor;
 	vinf_mask = VisualScreenMask | VisualDepthMask | VisualClassMask;
-	if(!(vis = XGetVisualInfo(dpy, vinf_mask, &vinf, &num_vis))) {
+	if(!(vinf = XGetVisualInfo(dpy, vinf_mask, &vtmpl, &num_vis))) {
 		fprintf(stderr, "failed to find appropriate visual for %d bpp\n", bpp);
 		return 0;
 	}
+	vis = vinf->visual;
 
-	if(!(cmap = XCreateColormap(dpy, root, vis->visual, bpp <= 8 ? AllocAll : AllocNone))) {
+	if(!(cmap = XCreateColormap(dpy, root, vis, bpp <= 8 ? AllocAll : AllocNone))) {
 		fprintf(stderr, "failed to allocate colormap\n");
 		return 0;
 	}
 
 	xattr.background_pixel = BlackPixel(dpy, scr);
 	xattr.colormap = cmap;
-	win = XCreateWindow(dpy, root, 0, 0, width, height, 0, vis->depth,
-			InputOutput, vis->visual, CWColormap | CWBackPixel, &xattr);
+	win = XCreateWindow(dpy, root, 0, 0, width, height, 0, vinf->depth,
+			InputOutput, vis, CWColormap | CWBackPixel, &xattr);
 	if(!win) return 0;
 
 	XSelectInput(dpy, win, StructureNotifyMask | ExposureMask | KeyPressMask |
@@ -157,6 +240,9 @@ static void handle_event(XEvent *ev)
 		break;
 
 	default:
+		if(ev->type == xshm_ev_completion) {
+			wait_putimg = 0;
+		}
 		break;
 	}
 }

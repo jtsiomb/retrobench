@@ -8,8 +8,8 @@ dbg = -g
 #opt = -O3 -ffast-math
 inc = -Isrc
 
-CFLAGS = -pedantic $(warn) $(dbg) $(opt) $(inc) -fcommon -MMD
-LDFLAGS = -lX11 -lm
+CFLAGS = -pedantic $(warn) $(dbg) $(opt) $(inc) -MMD
+LDFLAGS = -lX11 -lXext -lm
 
 $(bin): $(obj)
 	$(CC) -o $@ $(obj) $(LDFLAGS)

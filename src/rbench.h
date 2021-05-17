@@ -6,6 +6,12 @@ struct options {
 };
 
 extern struct options opt;
+extern int fb_width, fb_height, fb_bpp, fb_pitch;
+extern void *framebuf;
+extern unsigned int time_msec;
+
+int init(void);
+void cleanup(void);
 
 void redraw(void);
 void key_event(int key, int press);
