@@ -10,9 +10,9 @@ int main(void)
 	puts("\t.globl sinlut");
 	puts("_sinlut:");
 	puts("sinlut:");
-	for(i=0; i<256; i++) {
-		float x = sin((float)i / 128.0f * M_PI);
-		printf("\t.long %d\n", (int)(x * 256.0f));
+	for(i=0; i<1024; i++) {
+		float x = sin((float)i / 512.0f * M_PI);
+		printf("\t.long %d\n", (int)(x * 65536.0f));
 	}
 	return 0;
 }

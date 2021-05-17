@@ -33,7 +33,7 @@ void cleanup(void)
 
 #define XORRGB(x, y, zoom, r, g, b) \
 	do { \
-		int xor = (((x) - fb_width/2) * (zoom) >> 10) ^ (((y) - fb_height/2) * (zoom) >> 10); \
+		int xor = (((x) - fb_width/2) * (zoom) >> 16) ^ (((y) - fb_height/2) * (zoom) >> 16); \
 		(r) = xor >> 2; \
 		(g) = xor >> 1; \
 		(b) = xor; \
@@ -46,9 +46,9 @@ void redraw(void)
 	uint16_t *fbptr16;
 	uint32_t *fbptr32;
 
-	xoffs = COS(time_msec >> 5) * fb_width >> 7;
-	yoffs = SIN(time_msec >> 4) * fb_height >> 8;
-	zoom = ((SIN(time_msec >> 4) + 256) << 1) + 512;
+	xoffs = COS(time_msec >> 3) * fb_width >> 15;
+	yoffs = SIN(time_msec >> 2) * fb_height >> 16;
+	zoom = (SIN(time_msec >> 5) >> 1) + 65536;
 
 	switch(fb_bpp) {
 	case 15:
