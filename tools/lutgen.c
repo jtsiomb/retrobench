@@ -6,7 +6,9 @@ int main(void)
 	int i;
 
 	puts("\t.data");
+	puts("\t.globl _sinlut");
 	puts("\t.globl sinlut");
+	puts("_sinlut:");
 	puts("sinlut:");
 	for(i=0; i<256; i++) {
 		float x = sin((float)i / 128.0f * M_PI);

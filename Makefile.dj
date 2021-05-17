@@ -1,0 +1,41 @@
+src = $(wildcard src/*.c) $(wildcard src/dos/*.c)
+ssrc = sinlut.s
+obj = $(src:.c=.o) $(ssrc:.s=.o)
+dep = $(src:.c=.d)
+bin = rbench.exe
+
+LUTGEN = tools/lutgen.exe
+
+warn = -pedantic -Wall -Wno-deprecated-declarations
+dbg = -g
+opt = -O3 -ffast-math
+inc = -Isrc
+def = -DNO_STDINT_H
+
+CFLAGS = -pedantic $(warn) $(dbg) $(opt) $(def) $(inc) -MMD
+
+$(bin): $(obj)
+	$(CC) -o $@ $(obj) $(LDFLAGS)
+
+sinlut.s: $(LUTGEN)
+	$(LUTGEN) >$@
+
+-include $(dep)
+-include *.d
+
+.PHONY: clean
+clean:
+	del src\*.o
+	del src\dos\*.o
+	del *.o
+	del $(bin)
+	del sinlut.s
+
+.PHONY: cleandep
+cleandep:
+	del src\*.d
+	del src\dos\*.d
+	del *.d
+
+$(LUTGEN): tools/lutgen.c
+	$(CC) -o $@ $< -lm
