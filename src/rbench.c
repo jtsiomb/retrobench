@@ -4,6 +4,7 @@
 #include <math.h>
 #include "rbench.h"
 #include "treestor.h"
+#include "util.h"
 
 #define DEF_WIDTH	640
 #define DEF_HEIGHT	480
@@ -45,11 +46,10 @@ void redraw(void)
 	unsigned char *fbptr;
 	uint16_t *fbptr16;
 	uint32_t *fbptr32;
-	float t = (float)time_msec / 1000.0f;
 
-	xoffs = cos(t * 0.5f) * DEF_WIDTH * 2;
-	yoffs = sin(t) * DEF_HEIGHT;
-	zoom = (sin(t * 0.75f) * 0.5f + 1.0f) * 1024.0f;
+	xoffs = COS(time_msec >> 5) * fb_width >> 7;
+	yoffs = SIN(time_msec >> 4) * fb_height >> 8;
+	zoom = ((SIN(time_msec >> 4) + 256) << 1) + 512;
 
 	switch(fb_bpp) {
 	case 15:

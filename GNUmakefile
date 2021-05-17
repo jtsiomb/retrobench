@@ -1,5 +1,6 @@
 src = $(wildcard src/*.c) $(wildcard src/x11/*.c)
-obj = $(src:.c=.o)
+ssrc = sinlut.s
+obj = $(src:.c=.o) $(ssrc:.s=.o)
 dep = $(src:.c=.d)
 bin = rbench
 
@@ -14,6 +15,9 @@ LDFLAGS = -L/usr/X11R6/lib -lX11 -lXext -lm
 $(bin): $(obj)
 	$(CC) -o $@ $(obj) $(LDFLAGS)
 
+sinlut.s: tools/lutgen
+	tools/lutgen >$@
+
 -include $(dep)
 
 .PHONY: clean
@@ -23,3 +27,6 @@ clean:
 .PHONY: cleandep
 cleandep:
 	$(RM) $(dep)
+
+tools/lutgen: tools/lutgen.c
+	$(CC) -o $@ $< -lm

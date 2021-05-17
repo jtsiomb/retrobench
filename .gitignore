@@ -2,3 +2,5 @@
 *.d
 *.swp
 rbench
+sinlut.s
+tools/lutgen
