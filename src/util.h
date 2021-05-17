@@ -15,7 +15,7 @@ typedef unsigned int uint32_t;
 extern int sinlut[];
 
 #define SIN(x) sinlut[(x) & 0x3ff]
-#define COS(x) sinlut[((x) + 512) & 0x3ff]
+#define COS(x) sinlut[((x) + 256) & 0x3ff]
 
 int mask_to_shift(unsigned int mask);
 
