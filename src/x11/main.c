@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/ipc.h>
@@ -28,17 +29,28 @@ static Window win, root;
 static GC gc;
 static Visual *vis;
 static Atom xa_wm_proto, xa_wm_delwin;
+static int no_wm;
 
 static XImage *ximg;
 static XShmSegmentInfo shm;
 static int wait_putimg;
 static int xshm_ev_completion;
 
+
 int main(int argc, char **argv)
 {
 	int num_frames = 0;
 	XEvent ev;
 	struct timeval tv, tv0;
+	char *env;
+
+	if((env = getenv("RBENCH_NO_WM"))) {
+		if(isdigit(env[0])) {
+			no_wm = atoi(env);
+		} else {
+			no_wm = 1;
+		}
+	}
 
 	shm.shmid = -1;
 	shm.shmaddr = (void*)-1;
@@ -190,7 +202,7 @@ static Window create_win(int width, int height, int bpp)
 
 	xattr.background_pixel = BlackPixel(dpy, scr);
 	xattr.colormap = cmap;
-	xattr.override_redirect = True;
+	xattr.override_redirect = no_wm ? True : False;
 	win = XCreateWindow(dpy, root, 0, 0, width, height, 0, vinf->depth,
 			InputOutput, vis, CWColormap | CWBackPixel | CWOverrideRedirect, &xattr);
 	if(!win) return 0;
