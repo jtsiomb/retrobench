@@ -13,7 +13,7 @@
 
 void (*blit_frame)(void*, int);
 
-int resizefb(int x, int y, int bpp);
+int resizefb(int x, int y, int bpp, int pitch);
 
 static void blit_frame_lfb(void *pixels, int vsync);
 static void blit_frame_banked(void *pixels, int vsync);
@@ -86,7 +86,7 @@ int init_video(void)
 			vmptr->rmask = calc_mask(minf.rsize, minf.rpos);
 			vmptr->gmask = calc_mask(minf.gsize, minf.gpos);
 			vmptr->bmask = calc_mask(minf.bsize, minf.bpos);
-			vmptr->bpp = vmptr->rbits + vmptr->gbits + vmptr->bbits;
+			/*vmptr->bpp = vmptr->rbits + vmptr->gbits + vmptr->bbits;*/
 		}
 		if(minf.attr & VBE_ATTR_LFB) {
 			vmptr->fb_addr = minf.fb_addr;
@@ -230,7 +230,7 @@ void *set_video_mode(int idx, int nbuf)
 	}
 
 	/* allocate main memory framebuffer */
-	if(resizefb(vm->xsz, vm->ysz, vm->bpp) == -1) {
+	if(resizefb(vm->xsz, vm->ysz, vm->bpp, vm->pitch) == -1) {
 		fprintf(stderr, "failed to allocate %dx%d (%d bpp) framebuffer\n", vm->xsz,
 				vm->ysz, vm->bpp);
 		set_text_mode();

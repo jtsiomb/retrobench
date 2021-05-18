@@ -74,14 +74,16 @@ end:
 	return 0;
 }
 
-int resizefb(int x, int y, int bpp)
+int resizefb(int x, int y, int bpp, int pitch)
 {
+	printf("resizefb %dx%d %dbpp (pitch: %d)\n", x, y, bpp, pitch);
+
 	free(framebuf);
 
 	fb_width = x;
 	fb_height = y;
 	fb_bpp = bpp;
-	fb_pitch = x * bpp / 8;
+	fb_pitch = pitch;
 
 	if(!(framebuf = malloc(fb_pitch * fb_height))) {
 		fprintf(stderr, "failed to allocate %dx%d (%dbpp) framebuffer\n",
