@@ -138,8 +138,9 @@ int main(int argc, char **argv)
 
 				redraw();
 
-				XShmPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, ximg->width, ximg->height, True);
-				wait_putimg = 1;
+				XShmPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, ximg->width, ximg->height, False);
+				XSync(dpy, False);
+				/*wait_putimg = 1;*/
 			}
 		} else {
 			XNextEvent(dpy, &ev);

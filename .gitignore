@@ -1,6 +1,8 @@
 *.o
 *.d
 *.swp
-rbench
+rbench_x11
+rbench_fbdev
+rbench.exe
 sinlut.s
 tools/lutgen
