@@ -2,7 +2,9 @@ src = $(wildcard src/*.c) $(wildcard src/dos/*.c)
 ssrc = sinlut.s
 obj = $(src:.c=.o) $(ssrc:.s=.o)
 dep = $(src:.c=.d)
-bin = rbench.exe
+coff = rbench
+bin = $(coff).exe
+bin0 = $(coff)0.exe
 
 LUTGEN = tools/lutgen.exe
 
@@ -12,7 +14,12 @@ opt = -O3 -ffast-math
 inc = -Isrc
 def = -DNO_STDINT_H
 
-CFLAGS = -pedantic $(warn) $(dbg) $(opt) $(def) $(inc) -MMD
+CFLAGS = -pedantic $(warn) $(dbg) $(opt) $(def) $(inc) -fno-strict-aliasing -MMD
+LDFLAGS = -Wl,-Map=link.map
+
+$(bin0): $(bin)
+	exe2coff $<
+	copy /b \djgpp\bin\cwsdstr0.exe+$(coff) $@
 
 $(bin): $(obj)
 	$(CC) -o $@ $(obj) $(LDFLAGS)

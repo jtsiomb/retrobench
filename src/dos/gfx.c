@@ -1,11 +1,12 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dos.h>
 #include "cdpmi.h"
 #include "gfx.h"
 #include "vbe.h"
 #include "vga.h"
 #include "util.h"
+
 
 #define SAME_BPP(a, b)	\
 	((a) == (b) || ((a) == 16 && (b) == 15) || ((a) == 15 && (b) == 16) || \
@@ -18,6 +19,9 @@ int resizefb(int x, int y, int bpp, int pitch);
 static void blit_frame_lfb(void *pixels, int vsync);
 static void blit_frame_banked(void *pixels, int vsync);
 static uint32_t calc_mask(int sz, int pos);
+
+static void enable_wrcomb(uint32_t addr, int len);
+static void print_mtrr(void);
 
 static struct video_mode *vmodes;
 static int num_vmodes;
@@ -222,6 +226,9 @@ void *set_video_mode(int idx, int nbuf)
 
 		blit_frame = blit_frame_lfb;
 
+		print_mtrr();
+		enable_wrcomb(vm->fb_addr, fbsize);
+
 	} else {
 		vpgaddr[0] = (void*)0xa0000;
 		vpgaddr[1] = 0;
@@ -237,6 +244,7 @@ void *set_video_mode(int idx, int nbuf)
 		return 0;
 	}
 
+	fflush(stdout);
 	return vpgaddr[0];
 }
 
@@ -304,4 +312,161 @@ static uint32_t calc_mask(int sz, int pos)
 		mask = (mask << 1) | 1;
 	}
 	return mask << pos;
+}
+
+#define get_msr(msr, low, high) \
+	asm volatile( \
+		"\r\trdmsr" \
+		: "=a"(low), "=d"(high) \
+		: "c"(msr))
+
+#define set_msr(msr, low, high) \
+	asm volatile( \
+		"\r\twrmsr" \
+		:: "c"(msr), "a"(low), "d"(high))
+
+#define MSR_MTRRCAP			0xfe
+#define MSR_MTRRDEFTYPE		0x2ff
+#define MSR_MTRRBASE(x)		(0x200 | ((x) << 1))
+#define MSR_MTRRMASK(x)		(0x201 | ((x) << 1))
+#define MTRRDEF_EN			0x800
+#define MTRRCAP_HAVE_WC		0x400
+#define MTRRMASK_VALID		0x800
+
+#define MTRR_WC				1
+
+static int get_page_memtype(uint32_t addr, int num_ranges)
+{
+	int i;
+	uint32_t rlow, rhigh;
+	uint32_t base, mask;
+
+	for(i=0; i<num_ranges; i++) {
+		get_msr(MSR_MTRRMASK(i), rlow, rhigh);
+		if(!(rlow & MTRRMASK_VALID)) {
+			continue;
+		}
+
+		get_msr(MSR_MTRRBASE(i), rlow, rhigh);
+		base = rlow & 0xfffff000;
+		mask = rlow & 0xfffff000;
+
+		if((addr & mask) == (base & mask)) {
+			return rlow & 0xff;
+		}
+	}
+
+	get_msr(MSR_MTRRDEFTYPE, rlow, rhigh);
+	return rlow & 0xff;
+}
+
+static int check_wrcomb_enabled(uint32_t addr, int len, int num_ranges)
+{
+	while(len > 0) {
+		if(get_page_memtype(addr, num_ranges) != MTRR_WC) {
+			return 0;
+		}
+		addr += 4096;
+		len -= 4096;
+	}
+	return 1;
+}
+
+static int alloc_mtrr(int num_ranges)
+{
+	int i;
+	uint32_t rlow, rhigh;
+
+	for(i=0; i<num_ranges; i++) {
+		get_msr(MSR_MTRRMASK(i), rlow, rhigh);
+		if(!(rlow & MTRRMASK_VALID)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+static void enable_wrcomb(uint32_t addr, int len)
+{
+	int num_ranges, mtrr;
+	uint32_t rlow, rhigh;
+	uint32_t def, mask;
+
+	if(len <= 0 || (addr | (uint32_t)len) & 0xfff) {
+		fprintf(stderr, "failed to enable write combining, unaligned range: %p/%x\n",
+				(void*)addr, (unsigned int)len);
+		return;
+	}
+
+	get_msr(MSR_MTRRCAP, rlow, rhigh);
+	num_ranges = rlow & 0xff;
+
+	printf("enable_wrcomb: addr=%p len=%x\n", (void*)addr, (unsigned int)len);
+
+	if(!(rlow & MTRRCAP_HAVE_WC)) {
+		fprintf(stderr, "failed to enable write combining, processor doesn't support it\n");
+		return;
+	}
+
+	if(check_wrcomb_enabled(addr, len, num_ranges)) {
+		return;
+	}
+
+	if((mtrr = alloc_mtrr(num_ranges)) == -1) {
+		fprintf(stderr, "failed to enable write combining, no free MTRRs\n");
+		return;
+	}
+
+	mask = len - 1;
+	mask |= mask >> 1;
+	mask |= mask >> 2;
+	mask |= mask >> 4;
+	mask |= mask >> 8;
+	mask |= mask >> 16;
+	mask = ~mask & 0xfffff000;
+
+	printf("  ... mask: %08x\n", (unsigned int)mask);
+
+	disable();
+	get_msr(MSR_MTRRDEFTYPE, def, rhigh);
+	set_msr(MSR_MTRRDEFTYPE, def & ~MTRRDEF_EN, rhigh);
+
+	set_msr(MSR_MTRRBASE(mtrr), addr | MTRR_WC, 0);
+	set_msr(MSR_MTRRMASK(mtrr), mask | MTRRMASK_VALID, 0);
+
+	set_msr(MSR_MTRRDEFTYPE, def | MTRRDEF_EN, 0);
+	enable();
+}
+
+static const char *mtrr_names[] = { "N/A", "W C", "N/A", "N/A", "W T", "W P", "W B" };
+
+static const char *mtrr_type_name(int type)
+{
+	if(type < 0 || type >= sizeof mtrr_names / sizeof *mtrr_names) {
+		return mtrr_names[0];
+	}
+	return mtrr_names[type];
+}
+
+static void print_mtrr(void)
+{
+	int i, num_ranges;
+	uint32_t rlow, rhigh, base, mask;
+
+	get_msr(MSR_MTRRCAP, rlow, rhigh);
+	num_ranges = rlow & 0xff;
+
+	for(i=0; i<num_ranges; i++) {
+		get_msr(MSR_MTRRBASE(i), base, rhigh);
+		get_msr(MSR_MTRRMASK(i), mask, rhigh);
+
+		if(mask & MTRRMASK_VALID) {
+			printf("mtrr%d: base %p, mask %08x type %s\n", i, (void*)(base & 0xfffff000),
+					(unsigned int)(mask & 0xfffff000), mtrr_type_name(base & 0xff));
+		} else {
+			printf("mtrr%d unused (%08x/%08x)\n", i, (unsigned int)base,
+					(unsigned int)mask);
+		}
+	}
+	fflush(stdout);
 }
