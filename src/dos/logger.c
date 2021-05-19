@@ -19,3 +19,8 @@ int init_logger(const char *fname)
 	dup(fd);
 	return 0;
 }
+
+void stop_logger(void)
+{
+	init_logger("CON");
+}

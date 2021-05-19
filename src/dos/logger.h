@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 int init_logger(const char *fname);
+void stop_logger(void);
 
 #ifdef __cplusplus
 }

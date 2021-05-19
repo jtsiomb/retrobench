@@ -67,8 +67,10 @@ int main(int argc, char **argv)
 end:
 	set_text_mode();
 	cleanup_video();
+	stop_logger();
 
 	if(num_frames) {
+		printf("%d frames in %d msec\n", num_frames, time_msec);
 		printf("avg framerate: %.1f fps\n", (10000 * num_frames / time_msec) / 10.0f);
 	}
 	return 0;
