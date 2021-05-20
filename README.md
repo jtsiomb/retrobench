@@ -17,6 +17,9 @@ Currently supported platforms/drawing methods:
   - GNU/Linux with framebuffer console (fbdev).
   - DOS direct framebuffer access through VESA BIOS Extensions (VBE).
 
+Read about why I started this, and my initial findings:
+http://nuclear.mutantstargoat.com/blog/100-fbperf_experiments.html
+
 License
 -------
 Copyright (C) 2021 John Tsiombikas <nuclear@member.fsf.org>
