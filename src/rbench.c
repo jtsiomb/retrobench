@@ -31,9 +31,9 @@ void cleanup(void)
 {
 }
 
-#define XORRGB(x, y, zoom, r, g, b) \
+#define XORRGB(x, y, dx, dy, zoom, r, g, b) \
 	do { \
-		int xor = (((x) - fb_width/2) * (zoom) >> 16) ^ (((y) - fb_height/2) * (zoom) >> 16); \
+		int xor = ((((x) - fb_width/2) * (zoom) >> 16) + (dx)) ^ ((((y) - fb_height/2) * (zoom) >> 16) + (dy)); \
 		(r) = xor >> 2; \
 		(g) = xor >> 1; \
 		(b) = xor; \
@@ -46,9 +46,9 @@ void redraw(void)
 	uint16_t *fbptr16;
 	uint32_t *fbptr32;
 
-	xoffs = COS(time_msec >> 3) * fb_width >> 15;
-	yoffs = SIN(time_msec >> 2) * fb_height >> 16;
-	zoom = (SIN(time_msec >> 5) >> 1) + 65536;
+	xoffs = COS(time_msec >> 2) * fb_width >> 14;
+	yoffs = SIN(time_msec >> 1) * fb_height >> 15;
+	zoom = (SIN(time_msec >> 3) << 1) + 0x18000;
 
 	switch(fb_bpp) {
 	case 15:
@@ -56,7 +56,7 @@ void redraw(void)
 		fbptr16 = framebuf;
 		for(i=0; i<fb_height; i++) {
 			for(j=0; j<fb_width; j++) {
-				XORRGB(j + xoffs, i + yoffs, zoom, r, g, b);
+				XORRGB(j, i, xoffs, yoffs, zoom, r, g, b);
 				*fbptr16++ = (((r >> 3) << fb_rshift) & fb_rmask) |
 					(((g >> 2) << fb_gshift) & fb_gmask) |
 					(((b >> 3) << fb_bshift) & fb_bmask);
@@ -69,7 +69,7 @@ void redraw(void)
 		fbptr = framebuf;
 		for(i=0; i<fb_height; i++) {
 			for(j=0; j<fb_width; j++) {
-				XORRGB(j + xoffs, i + yoffs, zoom, r, g, b);
+				XORRGB(j, i, xoffs, yoffs, zoom, r, g, b);
 				*fbptr++ = r;
 				*fbptr++ = g;
 				*fbptr++ = b;
@@ -82,7 +82,7 @@ void redraw(void)
 		fbptr32 = framebuf;
 		for(i=0; i<fb_height; i++) {
 			for(j=0; j<fb_width; j++) {
-				XORRGB(j + xoffs, i + yoffs, zoom, r, g, b);
+				XORRGB(j, i, xoffs, yoffs, zoom, r, g, b);
 				*fbptr32++ = (((r) << fb_rshift) & fb_rmask) |
 					(((g) << fb_gshift) & fb_gmask) |
 					(((b) << fb_bshift) & fb_bmask);

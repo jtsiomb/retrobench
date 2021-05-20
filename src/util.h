@@ -35,10 +35,10 @@ typedef unsigned long intptr_t;
 	 ((x) << 24))
 
 
-extern int sinlut[];
+extern short sinlut[];
 
-#define SIN(x) sinlut[(x) & 0x3ff]
-#define COS(x) sinlut[((x) + 256) & 0x3ff]
+#define SIN(x) (int)sinlut[(x) & 0x7ff]
+#define COS(x) (int)sinlut[((x) + 512) & 0x7ff]
 
 int mask_to_shift(unsigned int mask);
 
