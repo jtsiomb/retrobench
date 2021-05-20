@@ -1,8 +1,11 @@
 *.o
+*.odj
 *.d
 *.swp
+*.map
+*.exe
 rbench_x11
 rbench_fbdev
-rbench.exe
 sinlut.s
 tools/lutgen
+*.LOG

@@ -1,12 +1,22 @@
 src = $(wildcard src/*.c) $(wildcard src/dos/*.c)
 ssrc = sinlut.s
-obj = $(src:.c=.o) $(ssrc:.s=.o)
+obj = $(src:.c=.odj) $(ssrc:.s=.odj)
 dep = $(src:.c=.d)
 coff = rbench
 bin = $(coff).exe
 bin0 = $(coff)0.exe
 
-LUTGEN = tools/lutgen.exe
+ifeq ($(findstring COMMAND.COM, $(SHELL)), COMMAND.COM)
+	host = dos
+	LUTGEN = tools/lutgen.exe
+else
+	host = unix
+	TC = i586-pc-msdosdjgpp-
+	LUTGEN = tools/lutgen
+endif
+
+CC = $(TC)gcc
+AS = $(TC)as
 
 warn = -pedantic -Wall -Wno-deprecated-declarations
 dbg = -g
@@ -17,12 +27,12 @@ def = -DNO_STDINT_H
 CFLAGS = -pedantic $(warn) $(dbg) $(opt) $(def) $(inc) -fno-strict-aliasing -MMD
 LDFLAGS = -Wl,-Map=link.map
 
+$(bin): $(obj)
+	$(CC) -o $@ $(obj) $(LDFLAGS)
+
 $(bin0): $(bin)
 	exe2coff $<
 	copy /b \djgpp\bin\cwsdstr0.exe+$(coff) $@
-
-$(bin): $(obj)
-	$(CC) -o $@ $(obj) $(LDFLAGS)
 
 sinlut.s: $(LUTGEN)
 	$(LUTGEN) >$@
@@ -30,11 +40,18 @@ sinlut.s: $(LUTGEN)
 -include $(dep)
 -include *.d
 
+%.odj: %.c
+	$(CC) -o $@ $(CFLAGS) -c $<
+
+%.odj: %.s
+	$(AS) -o $@ $(ASFLAGS) $<
+
+ifeq ($(host), dos)
 .PHONY: clean
 clean:
-	del src\*.o
-	del src\dos\*.o
-	del *.o
+	del src\*.odj
+	del src\dos\*.odj
+	del *.odj
 	del $(bin)
 	del sinlut.s
 
@@ -43,6 +60,16 @@ cleandep:
 	del src\*.d
 	del src\dos\*.d
 	del *.d
+else
+.PHONY: clean
+clean:
+	rm -f $(obj) $(bin)
+
+.PHONY: clean
+cleandep:
+	rm -f $(dep)
+endif
+	.
 
 $(LUTGEN): tools/lutgen.c
-	$(CC) -o $@ $< -lm
+	cc -o $@ $< -lm
