@@ -1,5 +1,5 @@
 src = $(wildcard src/*.c) $(wildcard src/dos/*.c)
-ssrc = sinlut.s
+ssrc = $(wildcard src/*.s) sinlut.s
 obj = $(src:.c=.odj) $(ssrc:.s=.odj)
 dep = $(src:.c=.d)
 coff = rbench

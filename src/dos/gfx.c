@@ -171,6 +171,7 @@ void *set_video_mode(int idx, int nbuf)
 {
 	unsigned int mode;
 	struct video_mode *vm = vmodes + idx;
+	struct cpuid_info cpu;
 
 	if(curmode == vm) return vpgaddr[0];
 
@@ -226,8 +227,10 @@ void *set_video_mode(int idx, int nbuf)
 
 		blit_frame = blit_frame_lfb;
 
-		print_mtrr();
-		enable_wrcomb(vm->fb_addr, fbsize);
+		if(read_cpuid(&cpu) != -1 && cpu.feat & CPUID_FEAT_MTRR) {
+			print_mtrr();
+			enable_wrcomb(vm->fb_addr, fbsize);
+		}
 
 	} else {
 		vpgaddr[0] = (void*)0xa0000;

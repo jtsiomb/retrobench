@@ -1,9 +1,9 @@
 src = $(wildcard src/*.c)
+ssrc = $(wildcard src/*.s) sinlut.s
 src_x11 = $(wildcard src/x11/*.c)
 src_fbdev = $(wildcard src/fbdev/*.c)
-ssrc = sinlut.s
-obj_x11 = $(src:.c=.o) $(src_x11:.c=.o) $(ssrc:.s=.o)
-obj_fbdev = $(src:.c=.o) $(src_fbdev:.c=.o) $(ssrc:.s=.o)
+obj_x11 = $(src_x11:.c=.o) $(src:.c=.o) $(ssrc:.s=.o)
+obj_fbdev = $(src_fbdev:.c=.o) $(src:.c=.o) $(ssrc:.s=.o)
 dep = $(src:.c=.d) $(src_x11:.c=.d) $(src_fbdev:.c=.d)
 bin_x11 = rbench_x11
 bin_fbdev = rbench_fbdev
@@ -13,7 +13,8 @@ dbg = -g
 opt = -O3 -ffast-math
 inc = -Isrc
 
-CFLAGS = -pedantic $(warn) $(dbg) $(opt) $(inc) -fno-strict-aliasing -MMD
+CFLAGS = -m32 -pedantic $(warn) $(dbg) $(opt) $(inc) -fno-strict-aliasing -MMD
+ASFLAGS = --32
 LDFLAGS_x11 = -L/usr/X11R6/lib -lX11 -lXext
 LDFLAGS_fbdev =
 
@@ -21,10 +22,10 @@ LDFLAGS_fbdev =
 all: $(bin_x11) $(bin_fbdev)
 
 $(bin_x11): $(obj_x11)
-	$(CC) -o $@ $(obj_x11) $(LDFLAGS_x11)
+	$(CC) -o $@ -m32 $(obj_x11) $(LDFLAGS_x11)
 
 $(bin_fbdev): $(obj_fbdev)
-	$(CC) -o $@ $(obj_fbdev) $(LDFLAGS_fbdev)
+	$(CC) -o $@ -m32 $(obj_fbdev) $(LDFLAGS_fbdev)
 
 sinlut.s: tools/lutgen
 	tools/lutgen >$@

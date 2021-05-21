@@ -19,8 +19,47 @@ unsigned int fb_rmask, fb_gmask, fb_bmask;
 void *framebuf;
 unsigned int time_msec;
 
+static const char *cpufeat[] = {
+	"fpu", "vme", "dbgext", "pse", "tsc", "msr", "pae", "mce", "cx8", "apic", 0,
+	"sep", "mtrr", "pge", "mca", "cmov", "pat", "pse36", "psn", "clf", 0,
+	"dtes", "acpi", "mmx", "fxsr", "sse", "sse2", "ss", "htt", "tm1", "ia64", "pbe"
+};
+
+static const char *cpufeat2[] = {
+	"sse3", "pclmul", "dtes64", "monitor", "dscpl", "vmx", "smx", "est", "tm2",
+	"ssse3", "cid", 0, "fma", "cx16", "etprd", "pdcm", 0, "pcide", "dca", "sse4.1",
+	"sse4.2", "x2apic", "movbe", "popcnt", 0, "aes", "xsave", "osxsave", "avx"
+};
+
 int init(void)
 {
+	int i;
+	struct cpuid_info cpu;
+
+	if(read_cpuid(&cpu) != -1) {
+		printf("CPUID information:\n");
+		printf("  cpuid blocks: %d\n", (int)cpu.maxidx);
+		printf("  CPU vendor: ");
+		for(i=0; i<12; i++) {
+			putchar(cpu.vendor[i]);
+		}
+		putchar('\n');
+		printf("  stepping: %u, model: %u, family: %u\n", CPUID_STEPPING(cpu.id),
+				CPUID_MODEL(cpu.id), CPUID_FAMILY(cpu.id));
+		printf("  features:");
+		for(i=0; i<sizeof cpufeat / sizeof *cpufeat; i++) {
+			if(cpufeat[i] && (cpu.feat & (1 << i))) {
+				printf(" %s", cpufeat[i]);
+			}
+		}
+		for(i=0; i<sizeof cpufeat2 / sizeof *cpufeat2; i++) {
+			if(cpufeat2[i] && (cpu.feat2 & (1 << i))) {
+				printf(" %s", cpufeat2[i]);
+			}
+		}
+		putchar('\n');
+	}
+
 	printf("initialized graphics %dx%d %dbpp\n", fb_width, fb_height, fb_bpp);
 	printf("  rgb mask: %x %x %x\n", fb_rmask, fb_gmask, fb_bmask);
 	printf("  rgb shift: %d %d %d\n", fb_rshift, fb_gshift, fb_bshift);
