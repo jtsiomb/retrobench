@@ -69,7 +69,6 @@ clean:
 cleandep:
 	rm -f $(dep)
 endif
-	.
 
 $(LUTGEN): tools/lutgen.c
-	cc -o $@ $< -lm
+	gcc -o $@ $< -lm
