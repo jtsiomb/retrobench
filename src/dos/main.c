@@ -17,15 +17,15 @@ int main(int argc, char **argv)
 	int num_frames = 0;
 	void *vmem;
 
+#ifdef __DJGPP__
+	__djgpp_nearptr_enable();
+#endif
+
 	read_config("rbench.cfg");
 
 	if(parse_args(argc, argv) == -1) {
 		return 1;
 	}
-
-#ifdef __DJGPP__
-	__djgpp_nearptr_enable();
-#endif
 
 	init_logger("rbench.log");
 

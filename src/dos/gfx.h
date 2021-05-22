@@ -11,7 +11,7 @@ struct video_mode {
 	uint32_t rmask, gmask, bmask;
 	uint32_t fb_addr;
 	short max_pages;
-	int win_gran, win_gran_shift, win_64k_step;
+	short win_gran, win_gran_shift, win_64k_step;
 };
 
 #ifdef __cplusplus

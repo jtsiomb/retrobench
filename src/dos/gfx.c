@@ -7,6 +7,11 @@
 #include "vga.h"
 #include "util.h"
 
+#ifdef __DJGPP__
+#define VMEM_PTR	((void*)(0xa0000 + __djgpp_conventional_base))
+#else
+#define VMEM_PTR	((void*)0xa0000)
+#endif
 
 #define SAME_BPP(a, b)	\
 	((a) == (b) || ((a) == 16 && (b) == 15) || ((a) == 15 && (b) == 16) || \
@@ -110,7 +115,6 @@ int init_video(void)
 void cleanup_video(void)
 {
 	free(vmodes);
-	vmodes = 0;
 }
 
 struct video_mode *video_modes(void)
@@ -187,7 +191,7 @@ void *set_video_mode(int idx, int nbuf)
 	}
 
 	/* unmap previous video memory mapping, if there was one (switching modes) */
-	if(vpgaddr[0] && vpgaddr[0] != (void*)0xa0000) {
+	if(vpgaddr[0] && vpgaddr[0] != VMEM_PTR) {
 		dpmi_munmap(vpgaddr[0]);
 		vpgaddr[0] = vpgaddr[1] = 0;
 	}
@@ -230,7 +234,7 @@ void *set_video_mode(int idx, int nbuf)
 		}
 
 	} else {
-		vpgaddr[0] = (void*)0xa0000;
+		vpgaddr[0] = VMEM_PTR;
 		vpgaddr[1] = 0;
 
 		blit_frame = blit_frame_banked;
@@ -265,7 +269,7 @@ void *set_video_mode(int idx, int nbuf)
 int set_text_mode(void)
 {
 	/* unmap previous video memory mapping, if there was one (switching modes) */
-	if(vpgaddr[0] && vpgaddr[0] != (void*)0xa0000) {
+	if(vpgaddr[0] && vpgaddr[0] != VMEM_PTR) {
 		dpmi_munmap(vpgaddr[0]);
 		vpgaddr[0] = vpgaddr[1] = 0;
 	}
@@ -308,8 +312,8 @@ static void blit_frame_banked(void *pixels, int vsync)
 	pending = pgsize;
 	while(pending > 0) {
 		sz = pending > 65536 ? 65536 : pending;
-		/*memcpy64((void*)0xa0000, pptr, sz >> 3);*/
-		memcpy((void*)0xa0000, pptr, sz);
+		/*memcpy64(VMEM_PTR, pptr, sz >> 3);*/
+		memcpy(VMEM_PTR, pptr, sz);
 		pptr += sz;
 		pending -= sz;
 		offs += curmode->win_64k_step;
