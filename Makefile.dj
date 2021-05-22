@@ -20,11 +20,11 @@ AS = $(TC)as
 
 warn = -pedantic -Wall -Wno-deprecated-declarations
 dbg = -g
-opt = -O3 -ffast-math
+opt = -O3 -ffast-math -fno-strict-aliasing
 inc = -Isrc
 def = -DNO_STDINT_H
 
-CFLAGS = -pedantic $(warn) $(dbg) $(opt) $(def) $(inc) -fno-strict-aliasing -MMD
+CFLAGS = $(warn) $(dbg) $(opt) $(def) $(inc) -MMD
 LDFLAGS = -Wl,-Map=link.map
 
 $(bin): $(obj)

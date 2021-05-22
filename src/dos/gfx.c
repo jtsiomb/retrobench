@@ -94,13 +94,9 @@ int init_video(void)
 		}
 		if(minf.attr & VBE_ATTR_LFB) {
 			vmptr->fb_addr = minf.fb_addr;
-		} else {
-			vmptr->bank_size = (uint32_t)minf.bank_size * 1024;
-			if(!vmptr->bank_size) {
-				vmptr->bank_size = 65536;
-			}
 		}
 		vmptr->max_pages = minf.num_img_pages;
+		vmptr->win_gran = minf.win_gran;
 
 		printf("%04x: ", vbe.modes[i]);
 		vbe_print_mode_info(stdout, &minf);
@@ -114,6 +110,7 @@ int init_video(void)
 void cleanup_video(void)
 {
 	free(vmodes);
+	vmodes = 0;
 }
 
 struct video_mode *video_modes(void)
@@ -198,7 +195,7 @@ void *set_video_mode(int idx, int nbuf)
 	curmode = vm;
 	if(nbuf < 1) nbuf = 1;
 	if(nbuf > 2) nbuf = 2;
-	pgcount = nbuf > vm->max_pages ? vm->max_pages : nbuf;
+	pgcount = nbuf > vm->max_pages + 1 ? vm->max_pages + 1 : nbuf;
 	pgsize = vm->ysz * vm->pitch;
 	fbsize = pgcount * pgsize;
 
@@ -237,6 +234,20 @@ void *set_video_mode(int idx, int nbuf)
 		vpgaddr[1] = 0;
 
 		blit_frame = blit_frame_banked;
+
+		/* calculate window granularity shift */
+		vm->win_gran_shift = 0;
+		vm->win_64k_step = 1;
+		if(vm->win_gran > 0 && vm->win_gran < 64) {
+			int gran = vm->win_gran;
+			while(gran < 64) {
+				vm->win_gran_shift++;
+				gran <<= 1;
+			}
+			vm->win_64k_step = 1 << vm->win_gran_shift;
+		}
+
+		printf("  granularity: %dk (step: %d)\n", vm->win_gran, vm->win_64k_step);
 	}
 
 	/* allocate main memory framebuffer */
@@ -287,7 +298,7 @@ static void blit_frame_lfb(void *pixels, int vsync)
 
 static void blit_frame_banked(void *pixels, int vsync)
 {
-	int sz, offs;
+	int offs;
 	unsigned int pending;
 	unsigned char *pptr = pixels;
 
@@ -297,14 +308,13 @@ static void blit_frame_banked(void *pixels, int vsync)
 	offs = 0;
 	pending = pgsize;
 	while(pending > 0) {
-		sz = pending > curmode->bank_size ? curmode->bank_size : pending;
-		//memcpy64((void*)0xa0000, pptr, sz >> 3);
-		memcpy((void*)0xa0000, pptr, sz);
-		pptr += sz;
-		pending -= sz;
-		vbe_setwin(0, ++offs);
+		//memcpy64((void*)0xa0000, pptr, 16384);
+		memcpy((void*)0xa0000, pptr, 65536);
+		pptr += 65536;
+		pending -= 65536;
+		offs += curmode->win_64k_step;
+		vbe_setwin(0, offs);
 	}
-
 	vbe_setwin(0, 0);
 }
 
