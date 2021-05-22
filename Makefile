@@ -13,19 +13,24 @@ dbg = -g
 opt = -O3 -ffast-math
 inc = -Isrc
 
-CFLAGS = -m32 -pedantic $(warn) $(dbg) $(opt) $(inc) -fno-strict-aliasing -MMD
-ASFLAGS = --32
+CFLAGS = $(ccarch) -pedantic $(warn) $(dbg) $(opt) $(inc) -fno-strict-aliasing -MMD
+ASFLAGS = $(asarch)
 LDFLAGS_x11 = -L/usr/X11R6/lib -lX11 -lXext
 LDFLAGS_fbdev =
+
+ifeq ($(shell uname -m), x86_64)
+	ccarch = -m32
+	asarch = --32
+endif
 
 .PHONY: all
 all: $(bin_x11) $(bin_fbdev)
 
 $(bin_x11): $(obj_x11)
-	$(CC) -o $@ -m32 $(obj_x11) $(LDFLAGS_x11)
+	$(CC) -o $@ $(ccarch) $(obj_x11) $(LDFLAGS_x11)
 
 $(bin_fbdev): $(obj_fbdev)
-	$(CC) -o $@ -m32 $(obj_fbdev) $(LDFLAGS_fbdev)
+	$(CC) -o $@ $(ccarch) $(obj_fbdev) $(LDFLAGS_fbdev)
 
 sinlut.s: tools/lutgen
 	tools/lutgen >$@
