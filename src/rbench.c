@@ -124,9 +124,9 @@ void redraw(void)
 		for(i=0; i<fb_height; i++) {
 			for(j=0; j<fb_width; j++) {
 				XORRGB(j, i, xoffs, yoffs, zoom, r, g, b);
-				*fbptr++ = r;
-				*fbptr++ = g;
 				*fbptr++ = b;
+				*fbptr++ = g;
+				*fbptr++ = r;
 			}
 			fbptr += fb_pitch - fb_width * 3;
 		}
