@@ -10,10 +10,10 @@ bin_fbdev = rbench_fbdev
 
 warn = -pedantic -Wall -Wno-deprecated-declarations
 dbg = -g
-opt = -O3 -ffast-math
+opt = -O3 -ffast-math -fno-strict-aliasing
 inc = -Isrc
 
-CFLAGS = $(ccarch) -pedantic $(warn) $(dbg) $(opt) $(inc) -fno-strict-aliasing -MMD
+CFLAGS = $(ccarch) $(warn) $(dbg) $(opt) $(inc) -MMD
 ASFLAGS = $(asarch)
 LDFLAGS_x11 = -L/usr/X11R6/lib -lX11 -lXext
 LDFLAGS_fbdev =
