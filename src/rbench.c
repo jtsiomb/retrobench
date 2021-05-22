@@ -70,6 +70,15 @@ void cleanup(void)
 {
 }
 
+#ifdef NOZOOM
+#define XORRGB(x, y, dx, dy, zoom, r, g, b) \
+	do { \
+		int xor = (((x) - fb_width/2) + (dx)) ^ (((y) - fb_height/2) + (dy)); \
+		(r) = xor >> 2; \
+		(g) = xor >> 1; \
+		(b) = xor; \
+	} while(0)
+#else
 #define XORRGB(x, y, dx, dy, zoom, r, g, b) \
 	do { \
 		int xor = ((((x) - fb_width/2) * (zoom) >> 16) + (dx)) ^ ((((y) - fb_height/2) * (zoom) >> 16) + (dy)); \
@@ -77,17 +86,23 @@ void cleanup(void)
 		(g) = xor >> 1; \
 		(b) = xor; \
 	} while(0)
+#endif
 
 void redraw(void)
 {
-	int i, j, r, g, b, xoffs, yoffs, zoom;
+	int i, j, r, g, b, xoffs, yoffs;
+#ifndef NOZOOM
+	int zoom;
+#endif
 	unsigned char *fbptr;
 	uint16_t *fbptr16;
 	uint32_t *fbptr32;
 
 	xoffs = COS(time_msec >> 2) * fb_width >> 14;
 	yoffs = SIN(time_msec >> 1) * fb_height >> 15;
+#ifndef NOZOOM
 	zoom = (SIN(time_msec >> 3) << 1) + 0x18000;
+#endif
 
 	switch(fb_bpp) {
 	case 15:

@@ -203,8 +203,15 @@ void *set_video_mode(int idx, int nbuf)
 	pgsize = vm->ysz * vm->pitch;
 	fbsize = pgcount * pgsize;
 
+	if(vm->bpp > 8) {
+		printf("rgb mask: %x %x %x\n", (unsigned int)vm->rmask,
+				(unsigned int)vm->gmask, (unsigned int)vm->bmask);
+		printf("rgb shift: %d %d %d\n", vm->rshift, vm->gshift, vm->bshift);
+	}
 	printf("pgcount: %d, pgsize: %d, fbsize: %d\n", pgcount, pgsize, fbsize);
-	printf("phys addr: %p\n", (void*)vm->fb_addr);
+	if(vm->fb_addr) {
+		printf("phys addr: %p\n", (void*)vm->fb_addr);
+	}
 	fflush(stdout);
 
 	if(vm->fb_addr) {
