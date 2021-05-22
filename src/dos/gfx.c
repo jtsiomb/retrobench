@@ -308,7 +308,7 @@ static void blit_frame_banked(void *pixels, int vsync)
 	pending = pgsize;
 	while(pending > 0) {
 		sz = pending > 65536 ? 65536 : pending;
-		//memcpy64((void*)0xa0000, pptr, sz >> 3);
+		/*memcpy64((void*)0xa0000, pptr, sz >> 3);*/
 		memcpy((void*)0xa0000, pptr, sz);
 		pptr += sz;
 		pending -= sz;
