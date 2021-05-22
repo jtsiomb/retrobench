@@ -247,7 +247,7 @@ void *set_video_mode(int idx, int nbuf)
 			vm->win_64k_step = 1 << vm->win_gran_shift;
 		}
 
-		printf("  granularity: %dk (step: %d)\n", vm->win_gran, vm->win_64k_step);
+		printf("granularity: %dk (step: %d)\n", vm->win_gran, vm->win_64k_step);
 	}
 
 	/* allocate main memory framebuffer */
@@ -298,8 +298,7 @@ static void blit_frame_lfb(void *pixels, int vsync)
 
 static void blit_frame_banked(void *pixels, int vsync)
 {
-	int offs;
-	unsigned int pending;
+	int sz, offs, pending;
 	unsigned char *pptr = pixels;
 
 	if(vsync) wait_vsync();
@@ -308,10 +307,11 @@ static void blit_frame_banked(void *pixels, int vsync)
 	offs = 0;
 	pending = pgsize;
 	while(pending > 0) {
-		//memcpy64((void*)0xa0000, pptr, 16384);
-		memcpy((void*)0xa0000, pptr, 65536);
-		pptr += 65536;
-		pending -= 65536;
+		sz = pending > 65536 ? 65536 : pending;
+		//memcpy64((void*)0xa0000, pptr, sz >> 3);
+		memcpy((void*)0xa0000, pptr, sz);
+		pptr += sz;
+		pending -= sz;
 		offs += curmode->win_64k_step;
 		vbe_setwin(0, offs);
 	}
