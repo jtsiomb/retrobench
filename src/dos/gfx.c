@@ -237,8 +237,18 @@ void *set_video_mode(int idx, int nbuf)
 		blit_frame = blit_frame_lfb;
 
 		if(read_cpuid(&cpu) != -1 && cpu.feat & CPUID_FEAT_MTRR) {
+			uint32_t len = (uint32_t)vbe.vmem_blk << 16;
+
+			/* if vmem_blk is 0 or if the reported size is absurd (more than
+			 * 256mb), just use the framebuffer size for this mode to setup the
+			 * mtrr
+			 */
+			if(!len || len > 0x10000000) {
+				printf("reported vmem too large or overflowed, using fbsize for wrcomb setup\n");
+				len = fbsize;
+			}
 			print_mtrr();
-			enable_wrcomb(vm->fb_addr, fbsize);
+			enable_wrcomb(vm->fb_addr, len);
 		}
 
 	} else {
