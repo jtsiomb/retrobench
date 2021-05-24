@@ -26,6 +26,7 @@ static void blit_frame_banked(void *pixels, int vsync);
 static uint32_t calc_mask(int sz, int pos);
 
 static void enable_wrcomb(uint32_t addr, int len);
+static const char *mtrr_type_name(int type);
 static void print_mtrr(void);
 
 static struct video_mode *vmodes;
@@ -370,10 +371,10 @@ static int get_page_memtype(uint32_t addr, int num_ranges)
 		if(!(rlow & MTRRMASK_VALID)) {
 			continue;
 		}
+		mask = rlow & 0xfffff000;
 
 		get_msr(MSR_MTRRBASE(i), rlow, rhigh);
 		base = rlow & 0xfffff000;
-		mask = rlow & 0xfffff000;
 
 		if((addr & mask) == (base & mask)) {
 			return rlow & 0xff;
